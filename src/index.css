@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: hsl(220 14% 8%);
+  --color-foreground: hsl(0 0% 95%);
+  --color-card: hsl(220 14% 11%);
+  --color-card-foreground: hsl(0 0% 95%);
+  --color-border: hsl(220 14% 18%);
+  --color-muted: hsl(220 14% 15%);
+  --color-muted-foreground: hsl(220 8% 55%);
+  --color-primary: hsl(265 80% 60%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-accent: hsl(30 90% 55%);
+
+  --font-family-display: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-family-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    background-color: hsl(220 14% 8%);
+    color: hsl(0 0% 95%);
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+}
