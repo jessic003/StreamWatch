@@ -5,7 +5,9 @@
       "Bash(npx tailwindcss:*)",
       "Bash(npm run:*)",
       "mcp__playwright__browser_press_key",
-      "mcp__playwright__browser_take_screenshot"
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__github__create_repository",
+      "mcp__Claude_Preview__preview_start"
     ]
   }
 }

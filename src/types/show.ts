@@ -12,6 +12,8 @@ export interface Show {
   year: number;
   episodes: number;
   seasons: number;
+  currentSeasonDate?: string;  // e.g. "April 5, 2026"
+  nowPlaying?: boolean;        // true if new season aired in 2026
 }
 
 export interface ComingSoonShow {

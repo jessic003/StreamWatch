@@ -5,6 +5,7 @@ import { ShowGrid } from '@/components/ShowGrid';
 import { PlatformSection } from '@/components/PlatformSection';
 import { FilterBar } from '@/components/FilterBar';
 import { ComingSoonSection } from '@/components/ComingSoonSection';
+import { RenewalSection } from '@/components/RenewalSection';
 import { shows, topRanked, newReleases, comingSoon } from '@/data/shows';
 import type { Platform } from '@/types/show';
 
@@ -89,6 +90,8 @@ const Index = () => {
                 title="✨ New Releases"
                 subtitle="Fresh releases you can watch now"
               />
+
+              <RenewalSection />
 
               <ComingSoonSection shows={comingSoon} />
 
