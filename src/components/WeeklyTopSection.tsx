@@ -98,8 +98,9 @@ export function WeeklyTopSection() {
   const { myList, isAdded, toggle } = useMyList();
   const [activeTab, setActiveTab] = useState<Platform>('netflix');
 
-  const activeShows = data[activeTab] ?? [];
-  const hasShows    = activeShows.length > 0;
+  const activeShows    = data[activeTab] ?? [];
+  const hasShows       = activeShows.length > 0;
+  const activePlatform = PLATFORMS.find(p => p.key === activeTab)!;
 
   return (
     <section style={{ paddingTop: '48px', paddingBottom: '32px' }}>
@@ -142,34 +143,52 @@ export function WeeklyTopSection() {
         </button>
       </div>
 
-      {/* Platform tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        {PLATFORMS.map(p => {
-          const count = (data[p.key] ?? []).length;
-          const isActive = activeTab === p.key;
-          return (
-            <button
-              key={p.key}
-              onClick={() => setActiveTab(p.key)}
-              style={{
-                padding: '7px 16px', borderRadius: 8, cursor: 'pointer',
-                fontSize: 13, fontWeight: 600,
-                backgroundColor: isActive ? p.color + '22' : 'hsl(220 14% 13%)',
-                border: `1px solid ${isActive ? p.color + '80' : 'hsl(220 14% 22%)'}`,
-                color: isActive ? p.color : 'hsl(220 8% 60%)',
-                transition: 'all 0.15s',
-              }}
-            >
-              {p.label}
-              {count > 0 && (
-                <span style={{ marginLeft: 6, fontSize: 11,
-                  color: isActive ? p.color : 'hsl(220 8% 40%)' }}>
-                  {count}
-                </span>
-              )}
-            </button>
-          );
-        })}
+      {/* Platform dropdown */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ position: 'relative', display: 'inline-block' }}>
+          <select
+            value={activeTab}
+            onChange={e => setActiveTab(e.target.value as Platform)}
+            style={{
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              padding: '10px 44px 10px 16px',
+              borderRadius: 10,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+              backgroundColor: 'hsl(220 14% 13%)',
+              border: `1px solid ${activePlatform.color}80`,
+              color: activePlatform.color,
+              outline: 'none',
+              minWidth: 200,
+              transition: 'border-color 0.15s, color 0.15s',
+            }}
+          >
+            {PLATFORMS.map(p => (
+              <option key={p.key} value={p.key} style={{ backgroundColor: 'hsl(220 14% 13%)', color: 'hsl(0 0% 90%)' }}>
+                {p.label}{(data[p.key] ?? []).length > 0 ? ` — Top ${(data[p.key] ?? []).length}` : ''}
+              </option>
+            ))}
+          </select>
+          {/* Custom chevron */}
+          <svg
+            viewBox="0 0 10 6"
+            style={{
+              position: 'absolute', right: 14, top: '50%',
+              transform: 'translateY(-50%)',
+              width: 12, height: 12,
+              pointerEvents: 'none',
+              fill: 'none',
+              stroke: activePlatform.color,
+              strokeWidth: 1.8,
+              strokeLinecap: 'round',
+              strokeLinejoin: 'round',
+            }}
+          >
+            <polyline points="1,1 5,5 9,1" />
+          </svg>
+        </div>
       </div>
 
       {/* Show list */}
