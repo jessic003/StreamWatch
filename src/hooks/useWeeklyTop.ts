@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import type { Platform } from '@/types/show';
 
-const CACHE_KEY = 'streamwatch_weekly_top';
-const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+const CACHE_KEY = 'streamwatch_weekly_top_v2';
+const CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
 
 export interface WeeklyShow {
   tvmazeId: number;
@@ -15,12 +15,23 @@ export interface WeeklyShow {
   summary: string;
   premiered: string;
   status: string;
+  currentSeason: number;
+  currentEpisode: number;
+  airdate: string;
+  isNewSeason: boolean;     // ep 1 of any season
+  isSeriesPremiere: boolean; // season 1, ep 1
+}
+
+export interface PlatformWeeklyData {
+  topFive: WeeklyShow[];
+  newThisWeek: WeeklyShow[];
+  newSeasons: WeeklyShow[];
 }
 
 interface CacheEntry {
   timestamp: number;
   weekOf: string;
-  data: Record<Platform, WeeklyShow[]>;
+  data: Record<Platform, PlatformWeeklyData>;
 }
 
 const PLATFORM_MAP: Record<string, Platform> = {
@@ -48,16 +59,19 @@ function getMondayDate(): string {
 }
 
 function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr);
+  const d = new Date(dateStr + 'T00:00:00');
   d.setDate(d.getDate() + days);
   return d.toISOString().split('T')[0];
 }
 
-async function fetchWeeklyTop(): Promise<Record<Platform, WeeklyShow[]>> {
+function emptyPlatform(): PlatformWeeklyData {
+  return { topFive: [], newThisWeek: [], newSeasons: [] };
+}
+
+async function fetchWeeklyTop(): Promise<Record<Platform, PlatformWeeklyData>> {
   const monday = getMondayDate();
   const dates = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 
-  // Fetch all 7 days in parallel
   const responses = await Promise.allSettled(
     dates.map(date =>
       fetch(`https://api.tvmaze.com/schedule/web?date=${date}&country=US`)
@@ -65,12 +79,11 @@ async function fetchWeeklyTop(): Promise<Record<Platform, WeeklyShow[]>> {
     )
   );
 
-  // Flatten all episodes
   const allEpisodes: any[] = responses.flatMap(r =>
     r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : []
   );
 
-  // Deduplicate by show id, keep the one with highest rating
+  // One entry per show: keep earliest episode this week
   const showMap = new Map<number, any>();
   for (const ep of allEpisodes) {
     const show = ep._embedded?.show ?? ep.show;
@@ -80,47 +93,74 @@ async function fetchWeeklyTop(): Promise<Record<Platform, WeeklyShow[]>> {
     if (!platform) continue;
 
     const existing = showMap.get(show.id);
-    const rating = show.rating?.average ?? 0;
-    if (!existing || rating > (existing.show.rating?.average ?? 0)) {
-      showMap.set(show.id, { show, platform, ep });
-    }
+    const isEarlier =
+      !existing ||
+      ep.airdate < existing.ep.airdate ||
+      (ep.airdate === existing.ep.airdate && (ep.number ?? 99) < (existing.ep.number ?? 99));
+
+    if (isEarlier) showMap.set(show.id, { show, platform, ep });
   }
 
-  // Group by platform, sort by rating desc, take top 5
-  const grouped: Record<Platform, WeeklyShow[]> = {
-    netflix: [], hulu: [], apple: [], prime: [],
+  const grouped: Record<Platform, PlatformWeeklyData> = {
+    netflix: emptyPlatform(),
+    hulu:    emptyPlatform(),
+    apple:   emptyPlatform(),
+    prime:   emptyPlatform(),
   };
 
-  for (const { show, platform } of showMap.values()) {
-    grouped[platform].push({
-      tvmazeId: show.id,
-      title: show.name,
+  for (const { show, platform, ep } of showMap.values()) {
+    const isNewSeason     = ep.number === 1;
+    const isSeriesPremiere = ep.season === 1 && ep.number === 1;
+
+    const weeklyShow: WeeklyShow = {
+      tvmazeId:        show.id,
+      title:           show.name,
       platform,
-      platformLabel: PLATFORM_LABELS[platform],
-      image: show.image?.medium ?? show.image?.original ?? '',
-      rating: show.rating?.average ?? 0,
-      genres: show.genres ?? [],
-      summary: show.summary?.replace(/<[^>]+>/g, '') ?? '',
-      premiered: show.premiered ?? '',
-      status: show.status ?? '',
-    });
+      platformLabel:   PLATFORM_LABELS[platform],
+      image:           show.image?.medium ?? show.image?.original ?? '',
+      rating:          show.rating?.average ?? 0,
+      genres:          show.genres ?? [],
+      summary:         show.summary?.replace(/<[^>]+>/g, '') ?? '',
+      premiered:       show.premiered ?? '',
+      status:          show.status ?? '',
+      currentSeason:   ep.season ?? 1,
+      currentEpisode:  ep.number ?? 1,
+      airdate:         ep.airdate ?? '',
+      isNewSeason,
+      isSeriesPremiere,
+    };
+
+    grouped[platform].newThisWeek.push(weeklyShow);
+    if (isNewSeason) grouped[platform].newSeasons.push(weeklyShow);
   }
 
   for (const p of Object.keys(grouped) as Platform[]) {
-    grouped[p] = grouped[p]
+    // Top 5 by rating
+    grouped[p].topFive = [...grouped[p].newThisWeek]
       .sort((a, b) => b.rating - a.rating)
       .slice(0, 5);
+
+    // New this week: by airdate then rating desc
+    grouped[p].newThisWeek.sort(
+      (a, b) => a.airdate.localeCompare(b.airdate) || b.rating - a.rating
+    );
+
+    // New seasons: by airdate
+    grouped[p].newSeasons.sort((a, b) => a.airdate.localeCompare(b.airdate));
   }
 
   return grouped;
 }
 
 export function useWeeklyTop() {
-  const [data, setData] = useState<Record<Platform, WeeklyShow[]>>({
-    netflix: [], hulu: [], apple: [], prime: [],
+  const [data, setData] = useState<Record<Platform, PlatformWeeklyData>>({
+    netflix: emptyPlatform(),
+    hulu:    emptyPlatform(),
+    apple:   emptyPlatform(),
+    prime:   emptyPlatform(),
   });
   const [loading, setLoading] = useState(true);
-  const [weekOf, setWeekOf] = useState('');
+  const [weekOf, setWeekOf]   = useState('');
 
   const load = async (force = false) => {
     setLoading(true);
